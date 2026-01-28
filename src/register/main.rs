@@ -1,9 +1,11 @@
-use crate::Error;
-use crate::Lps22hh;
+use super::super::{
+    BusOperation, Error, Lps22hh, RegisterOperation, SensorOperation, bisync, register::OnState,
+};
+
 use bitfield_struct::bitfield;
 use derive_more::TryFrom;
+
 use st_mem_bank_macro::register;
-use st_mems_bus::BusOperation;
 
 /// Register addresses for LPS22HH sensor
 ///
@@ -77,7 +79,7 @@ pub enum Reg {
 ///
 /// Configures interrupt generation based on pressure threshold events,
 /// autozero and autoreference reset and enable functions, and interrupt latching.
-#[register(address = Reg::InterruptCfg, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::InterruptCfg, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct InterruptCfg {
@@ -123,7 +125,7 @@ pub struct InterruptCfg {
 ///
 /// Contains the 15-bit threshold pressure value used for interrupt generation.
 /// Threshold value = Desired interrupt threshold (hPa) × 16
-#[register(address = Reg::ThsPL, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::ThsPL, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct ThsP {
@@ -140,7 +142,7 @@ pub struct ThsP {
 ///
 /// Controls enabling/disabling of I2C and MIPI I3C interfaces, pull-up and pull-down resistors,
 /// and interrupt pin configuration.
-#[register(address = Reg::IfCtrl, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::IfCtrl, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct IfCtrl {
@@ -181,7 +183,7 @@ pub struct IfCtrl {
 /// WHO_AM_I (0x0F)
 ///
 /// The identification register is used to identity the device (R)
-#[register(address = Reg::WhoAmI, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::WhoAmI, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct WhoAmI {
@@ -194,7 +196,7 @@ pub struct WhoAmI {
 /// Control register 1 (R/W)
 ///
 /// Controls output data rate, low-pass filter, block data update, and SPI interface mode.
-#[register(address = Reg::CtrlReg1, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::CtrlReg1, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CtrlReg1 {
@@ -234,7 +236,7 @@ pub struct CtrlReg1 {
 ///
 /// Controls one-shot mode, low noise mode, software reset, address auto-increment,
 /// interrupt pin configuration, and reboot memory content.
-#[register(address = Reg::CtrlReg2, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::CtrlReg2, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CtrlReg2 {
@@ -280,7 +282,7 @@ pub struct CtrlReg2 {
 /// Control register 3 - INT_DRDY pin control register (R/W)
 ///
 /// Controls interrupt signals routed to the INT_DRDY pin.
-#[register(address = Reg::CtrlReg3, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::CtrlReg3, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct CtrlReg3 {
@@ -320,7 +322,7 @@ pub struct CtrlReg3 {
 /// FIFO control register (R/W)
 ///
 /// Controls FIFO mode selection and watermark stop behavior.
-#[register(address = Reg::FifoCtrl, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::FifoCtrl, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct FifoCtrl {
@@ -347,7 +349,7 @@ pub struct FifoCtrl {
 /// FIFO watermark setting register (R/W)
 ///
 /// Sets the FIFO watermark level for interrupt generation.
-#[register(address = Reg::FifoWtm, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::FifoWtm, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct FifoWtm {
@@ -363,7 +365,7 @@ pub struct FifoWtm {
 /// Reference pressure registers (R/W)
 ///
 /// Contains the 16-bit (expressed in 2's complement) reference pressure value used in AUTOZERO or AUTOREFP modes.
-#[register(address = Reg::RefPL, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::RefPL, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct RefP {
@@ -377,7 +379,7 @@ pub struct RefP {
 /// Pressure offset low and high register (R/W)
 ///
 /// Contains the 16-bit (2's complement) pressure offset value used for one-point calibration (OPC).
-#[register(address = Reg::RpdsL, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::RpdsL, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct Rpds {
@@ -389,7 +391,7 @@ pub struct Rpds {
 /// INT_SOURCE (0x24)
 ///
 /// Interrupt source register (R)
-#[register(address = Reg::IntSource, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::IntSource, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct IntSource {
@@ -412,7 +414,7 @@ pub struct IntSource {
 /// FIFO_STATUS1 - FIFO_STATUS2 (0x25 - 0x26)
 ///
 /// FIFO status register 1 (R)
-#[register(address = Reg::FifoStatus1, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::FifoStatus1, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct FifoStatusReg {
@@ -479,7 +481,7 @@ pub struct FifoStatus2 {
 /// STATUS (0x27)
 ///
 /// Status register (R)
-#[register(address = Reg::Status, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::Status, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u8, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u8, order = Lsb))]
 pub struct Status {
@@ -504,7 +506,7 @@ pub struct Status {
 /// PRESS_OUT_XL - PRESS_OUT_L - PRESS_OUT_H (0x28 - 0x2A)
 ///
 /// Pressure output value (R)
-#[register(address = Reg::PressOutXl, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::PressOutXl, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u32, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u32, order = Lsb))]
 pub struct PressOut {
@@ -517,7 +519,7 @@ pub struct PressOut {
 /// TempOut (0x2B - 0x2C)
 ///
 /// Temperature register of the sensor in 2's complement format
-#[register(address = Reg::TempOutL, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::TempOutL, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct TempOut {
@@ -529,7 +531,7 @@ pub struct TempOut {
 /// FIFO_DATA_OUT_PRESS_XL - FIFO_DATA_OUT_PRESS_L - FIFO_DATA_OUT_PRESS_H (0x78 - 0x7A)
 ///
 /// FIFO pressure output (3 byte) (R)
-#[register(address = Reg::FifoDataOutPressXl, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::FifoDataOutPressXl, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u32, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u32, order = Lsb))]
 pub struct FifoDataOutPress {
@@ -542,7 +544,7 @@ pub struct FifoDataOutPress {
 /// FIFO_DATA_OUT_TEMP_L - FIFO_DATA_OUT_TEMP_H (0x7B - 0x7C)
 ///
 /// FIFO temperature output two's complement 16 bit format(R)
-#[register(address = Reg::FifoDataOutTempL, access_type = Lps22hh, generics = 1)]
+#[register(address = Reg::FifoDataOutTempL, access_type = "Lps22hh<B, OnState>")]
 #[cfg_attr(feature = "bit_order_msb", bitfield(u16, order = Msb))]
 #[cfg_attr(not(feature = "bit_order_msb"), bitfield(u16, order = Lsb))]
 pub struct FifoDataOutTemp {
